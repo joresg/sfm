@@ -77,6 +77,38 @@ char *substr(char *str, int start, int finish){
 	}
 	return ret;
 }
+void draw(Display *dpy, int screen, Window win, GC gc, XWindowAttributes wa, ls_ret *subdirs, int selected_dir, int content_start){
+	//get window attributes firs
+	XGetWindowAttributes(dpy, win, &wa);
+	//first draw background
+	XSetForeground(dpy, gc, BlackPixel(dpy, screen));
+	XFillRectangle(dpy, win, gc, 0, 0, wa.width, wa.height);
+	//draw text
+	XSetForeground(dpy, gc, WhitePixel(dpy, screen));
+
+
+	char **subdirs_name = subdirs->str;
+	//izpisi vse directory-je
+	int textx = 10, texty = 30, num_of_displayed_dirs = wa.height/40;
+
+	if(subdirs->len == 0){
+		XDrawString(dpy, win, gc, textx, texty, "EMPTY", 5);
+	}else{
+		for(int i=content_start;i<subdirs->len && i<content_start+num_of_displayed_dirs;i++){
+			if(i == selected_dir){
+				printf("i: %d cd: %d\n",i,selected_dir);
+				XSetForeground(dpy, gc, WhitePixel(dpy, screen));
+				XFillRectangle(dpy, win, gc, 0, (selected_dir-content_start)*40, wa.width, 40);
+				XSetForeground(dpy, gc, BlackPixel(dpy, screen));
+				XDrawString(dpy, win, gc, textx, texty, subdirs_name[i], strlen(subdirs_name[i]));
+			}else{
+				XSetForeground(dpy, gc, WhitePixel(dpy, screen));
+				XDrawString(dpy, win, gc, textx, texty, subdirs_name[i], strlen(subdirs_name[i]));
+			}
+			texty+=40;
+		}
+	}
+}
 
 int main(int argc, char **argv){
 
@@ -126,7 +158,6 @@ int main(int argc, char **argv){
 
 	Font font = XLoadFont(dpy, "-adobe-utopia-regular-r-normal--33-240-100-100-p-180-iso8859-14");	
 	
-	
 	//set GC attributes
 	XGCValues sgc;
 	sgc.font = font;
@@ -143,43 +174,18 @@ int main(int argc, char **argv){
 	strcpy(dir, "/home/joresg/");
 
 	int choice_dir = 0;
-	int content_start = 0, num_of_displayed_dirs = wa.height/40-2;
+	int content_start = 0, num_of_displayed_dirs = wa.height/40;
+	XWindowAttributes rwa;
 	while(!XNextEvent(dpy, &event)){
-		ls_ret *subdirs = ls(dir);
-		char **subdirs_name = subdirs->str;
-		printf("choice dir: %d\n", choice_dir);
-		printf("CURRENTLY SELECTED: %s\n", subdirs_name[choice_dir]);
-		//first draw background
-		XSetForeground(dpy, gc, BlackPixel(dpy, screen));
-		XFillRectangle(dpy, win, gc, 0, 0, wa.width, wa.height);
-		//draw text
-		XSetForeground(dpy, gc, WhitePixel(dpy, screen));
+		XGetWindowAttributes(dpy, win, &wa);
+		num_of_displayed_dirs = wa.height/40;
 		//get all subdirs
-		//izpisi vse directory-je
-		int textx = 10, texty = 30;
-		if(subdirs->len == 0){
-			XDrawString(dpy, win, gc, textx, texty, "EMPTY", 5);
-		}else{
-			//for(int i=content_start;i<content_start+num_of_displayed_dirs;i++){
-			for(int i=content_start;i<subdirs->len && i<content_start+num_of_displayed_dirs;i++){
-				if(i == choice_dir){
-					printf("i: %d cd: %d\n",i,choice_dir);
-					XSetForeground(dpy, gc, color1.pixel);
-					XFillRectangle(dpy, win, gc, 0, (choice_dir)*40, wa.width, 40);
-					XSetForeground(dpy, gc, BlackPixel(dpy, screen));
-					XDrawString(dpy, win, gc, textx, texty, subdirs_name[i], strlen(subdirs_name[i]));
-				}else{
-					XSetForeground(dpy, gc, WhitePixel(dpy, screen));
-					XDrawString(dpy, win, gc, textx, texty, subdirs_name[i], strlen(subdirs_name[i]));
-				}
-				texty+=40;
-			}
-		}
+		ls_ret *subdirs = ls(dir);
 		printf("is %s dir? %d\n",dir, is_dir(dir));
+		draw(dpy, screen, win, gc, wa, subdirs, choice_dir, content_start);
 		switch(event.type){
 			case Expose:
 				printf("%s\n","expose");
-				XGetWindowAttributes(dpy, win, &wa);
 				break;
 			case KeyPress:
 				switch(event.xkey.keycode){
@@ -187,7 +193,7 @@ int main(int argc, char **argv){
 						strcpy(dir, "/home/joresg/");
 						choice_dir = 0;
 						break;
-					case 43:
+					case 43: //h aka go back
 						printf("%s\n","goin to parent dir");
 						if(strcmp(dir,"/")){
 							printf("nisem se v root, LP\n");
@@ -204,7 +210,7 @@ int main(int argc, char **argv){
 						choice_dir = 0;
 						content_start = 0;
 						break;
-					case 44:
+					case 44: //j aka go down
 						if(choice_dir < subdirs->len-1){
 							choice_dir++;
 							if(choice_dir == content_start+num_of_displayed_dirs){
@@ -222,8 +228,8 @@ int main(int argc, char **argv){
 						break;
 					case 46:
 						printf("goin in hot\n");
-						printf("dir....%s\nsubidr.....%s\n",dir, subdirs_name[choice_dir]);
-						strcat(dir,subdirs_name[choice_dir]);
+						printf("dir....%s\nsubidr.....%s\n",dir, subdirs->str[choice_dir]);
+						strcat(dir,subdirs->str[choice_dir]);
 						if(is_dir(dir)){
 							strcat(dir,"/");
 							choice_dir = 0;
@@ -262,7 +268,6 @@ int main(int argc, char **argv){
 			default:
 				break;
 		}
-		printf("FREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE");
 		ls_free(subdirs);
 	}
 	return(0);

@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <string.h>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 typedef struct ls_rets{
 	char ** str;
@@ -132,13 +134,17 @@ int main(int argc, char **argv){
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
 
+	Bool supported_rtrn;
+	Bool xkbar = XkbSetDetectableAutoRepeat(dpy, True, &supported_rtrn);
+
 	Colormap cmap = DefaultColormap(dpy, screen);
 	XParseColor(dpy, cmap, "#198c8f", &color1);
 	XAllocColor(dpy, cmap, &color1);
 
 	//set window attributes
 	swa.background_pixel = BlackPixel(dpy, screen);
-	swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | VisibilityChangeMask;
+	//swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | VisibilityChangeMask;
+	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
 
 	//create window
 	win = XCreateWindow(dpy, root, winx, winy, winw, winh, 2, CopyFromParent, CopyFromParent, CopyFromParent, CWBackPixel | CWEventMask, &swa);
@@ -147,12 +153,15 @@ int main(int argc, char **argv){
 
 	//load font which you will use
 	//with the given CG
+	/*
 	int npaths_return;
 	char **gfp = XGetFontPath(dpy, &npaths_return); 
 	printf("num of paths: %d\n",npaths_return);
 	for(int i=0;i<npaths_return;i++){
 		printf("%s\n",gfp[i]);
 	}
+	*/
+
 	/*
 	char **font_dirs = (char **)malloc(sizeof(char *));
 	font_dirs[0] = (char *)malloc(40*sizeof(char));
@@ -169,7 +178,7 @@ int main(int argc, char **argv){
 
 	//map window (show it) and select it as input
 	XMapWindow(dpy, win);
-	XSelectInput(dpy, win, ExposureMask | KeyPressMask | KeyReleaseMask | VisibilityChangeMask);
+	//XSelectInput(dpy, win, ExposureMask | KeyPressMask | KeyReleaseMask | VisibilityChangeMask);
 
 	//handle events
 	XEvent event;
@@ -192,11 +201,8 @@ int main(int argc, char **argv){
 			case Expose:
 				printf("%s\n","EXPOSE");
 				break;
-			case KeyRelease:
-				printf("KEYRELEASE: %s\n", dir);
-				//printf("KeyReleaseDIR: %s\n", dir);
+			case KeyRelease: // in case autorepeat fails just ignore keyrelease events
 				continue;
-				//break;
 			case KeyPress:
 				printf("%s\n","KEYPRESS");
 				//printf("KeyPressDIR: %s\n", dir);

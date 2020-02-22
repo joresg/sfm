@@ -174,18 +174,26 @@ int main(int argc, char **argv){
 	int choice_dir = 0;
 	int content_start = 0, num_of_displayed_dirs = wa.height/40;
 	XWindowAttributes rwa;
+	ls_ret *subdirs = ls(dir);
 	while(!XNextEvent(dpy, &event)){
 		XGetWindowAttributes(dpy, win, &wa);
 		num_of_displayed_dirs = wa.height/40;
+		//subdirs = ls(dir);
 		//get all subdirs
-		ls_ret *subdirs = ls(dir);
 		printf("is %s dir? %d\n",dir, is_dir(dir));
-		draw(dpy, screen, win, gc, wa, subdirs, choice_dir, content_start);
+		//draw(dpy, screen, win, gc, wa, subdirs, choice_dir, content_start);
 		switch(event.type){
 			case Expose:
-				printf("%s\n","expose");
+				printf("%s\n","EXPOSE");
 				break;
+			case KeyRelease:
+				printf("KEYRELEASE: %s\n", dir);
+				//printf("KeyReleaseDIR: %s\n", dir);
+				continue;
+				//break;
 			case KeyPress:
+				printf("%s\n","KEYPRESS");
+				//printf("KeyPressDIR: %s\n", dir);
 				switch(event.xkey.keycode){
 
 					case 22:
@@ -206,6 +214,8 @@ int main(int argc, char **argv){
 						}
 						choice_dir = 0;
 						content_start = 0;
+						ls_free(subdirs);
+						subdirs = ls(dir);
 						break;
 					case 44: //j aka go down
 						if(choice_dir < subdirs->len-1){
@@ -230,6 +240,8 @@ int main(int argc, char **argv){
 							strcat(dir,"/");
 							choice_dir = 0;
 							content_start = 0;
+							ls_free(subdirs);
+							subdirs = ls(dir);
 						}
 						else{
 							//odpri file
@@ -286,7 +298,7 @@ int main(int argc, char **argv){
 							is_term[strlen(is_term)-1] = '\0';
 							printf("is_term: %s\n", is_term);
 							if(!strcmp(is_term, "true")){
-								char *cmd = (char *)malloc((11+strlen(dir))*sizeof(char));
+								char *cmd = (char *)malloc((17+strlen(dir))*sizeof(char));
 								strcpy(cmd, "st -e xdg-open ");
 								strcat(cmd, dir);
 								strcat(cmd, " &");
@@ -305,8 +317,12 @@ int main(int argc, char **argv){
 								free(cmd);
 
 							}
+							free(query_filetype_cmd);
+							free(desktop_file_cmd);
+							free(is_term_cmd);
 							//exit(1);
 						}
+						//continue;
 						break;
 					default:
 						printf("%s\n","kpress");
@@ -322,10 +338,12 @@ int main(int argc, char **argv){
 				}
 				break;
 			default:
+				printf("EVENT TYPE???? %d\n", event.type);
+				continue;
 				break;
 		}
-		//draw(dpy, screen, win, gc, wa, subdirs, choice_dir, content_start);
-		ls_free(subdirs);
+		draw(dpy, screen, win, gc, wa, subdirs, choice_dir, content_start);
 	}
+	free(subdirs);
 	return(0);
 }

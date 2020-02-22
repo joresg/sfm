@@ -109,6 +109,12 @@ void draw(Display *dpy, int screen, Window win, GC gc, XWindowAttributes wa, ls_
 		}
 	}
 }
+int dir_empty(ls_ret *dirs){
+	if(dirs->len == 0){
+		return 1;
+	}
+	return 0;
+}
 
 int main(int argc, char **argv){
 
@@ -198,6 +204,8 @@ int main(int argc, char **argv){
 
 					case 22:
 						strcpy(dir, "/home/joresg/");
+						ls_free(subdirs);
+						subdirs = ls(dir);
 						choice_dir = 0;
 						break;
 					case 43: //h aka go back
@@ -234,9 +242,16 @@ int main(int argc, char **argv){
 						}
 						break;
 					case 46:
+						if(dir_empty(subdirs)){
+							printf("prazen dir, skipaj...\n");
+							continue;
+						}
 						printf("dir....%s\nsubidr.....%s\n",dir, subdirs->str[choice_dir]);
-						strcat(dir,subdirs->str[choice_dir]);
-						if(is_dir(dir)){
+						char *dir_tmp = (char *)malloc(500*sizeof(char));
+						strcpy(dir_tmp, dir);
+						strcat(dir_tmp,subdirs->str[choice_dir]);
+						if(is_dir(dir_tmp)){
+							strcpy(dir, dir_tmp);
 							strcat(dir,"/");
 							choice_dir = 0;
 							content_start = 0;
@@ -250,9 +265,9 @@ int main(int argc, char **argv){
 							//cat /usr/share/applications/nvim.desktop | grep Terminal | cut -d'=' -f2
 							//first get the corresponding .desktop file
 							//xdg-mime query filetype ~/Downloads/faces/testing/001.jpg
-							char *query_filetype_cmd = (char *)malloc((25+strlen(dir))*sizeof(char));
+							char *query_filetype_cmd = (char *)malloc((25+strlen(dir_tmp))*sizeof(char));
 							strcpy(query_filetype_cmd, "xdg-mime query filetype ");
-							strcat(query_filetype_cmd, dir);
+							strcat(query_filetype_cmd, dir_tmp);
 							printf("query filetype cmd: %s\n", query_filetype_cmd);
 
 							FILE *fp;
@@ -298,9 +313,9 @@ int main(int argc, char **argv){
 							is_term[strlen(is_term)-1] = '\0';
 							printf("is_term: %s\n", is_term);
 							if(!strcmp(is_term, "true")){
-								char *cmd = (char *)malloc((17+strlen(dir))*sizeof(char));
+								char *cmd = (char *)malloc((17+strlen(dir_tmp))*sizeof(char));
 								strcpy(cmd, "st -e xdg-open ");
-								strcat(cmd, dir);
+								strcat(cmd, dir_tmp);
 								strcat(cmd, " &");
 								status = system(cmd);
 								printf("status: %d\n", status);
@@ -308,9 +323,9 @@ int main(int argc, char **argv){
 
 
 							}else{
-								char *cmd = (char *)malloc((11+strlen(dir))*sizeof(char));
+								char *cmd = (char *)malloc((11+strlen(dir_tmp))*sizeof(char));
 								strcpy(cmd, "xdg-open ");
-								strcat(cmd, dir);
+								strcat(cmd, dir_tmp);
 								strcat(cmd, " &");
 								status = system(cmd);
 								printf("status: %d\n", status);
@@ -320,6 +335,7 @@ int main(int argc, char **argv){
 							free(query_filetype_cmd);
 							free(desktop_file_cmd);
 							free(is_term_cmd);
+							free(dir_tmp);
 							//exit(1);
 						}
 						//continue;
@@ -338,7 +354,7 @@ int main(int argc, char **argv){
 				}
 				break;
 			default:
-				printf("EVENT TYPE???? %d\n", event.type);
+				printf("event type: %d\n", event.type);
 				continue;
 				break;
 		}

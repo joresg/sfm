@@ -142,13 +142,11 @@ int main(int argc, char **argv){
 	//load font which you will use
 	//with the given CG
 	int npaths_return;
-	printf("%s\n","FUCK");
 	char **gfp = XGetFontPath(dpy, &npaths_return); 
 	printf("num of paths: %d\n",npaths_return);
 	for(int i=0;i<npaths_return;i++){
 		printf("%s\n",gfp[i]);
 	}
-	printf("%s\n","OK");
 	/*
 	char **font_dirs = (char **)malloc(sizeof(char *));
 	font_dirs[0] = (char *)malloc(40*sizeof(char));
@@ -189,6 +187,7 @@ int main(int argc, char **argv){
 				break;
 			case KeyPress:
 				switch(event.xkey.keycode){
+
 					case 22:
 						strcpy(dir, "/home/joresg/");
 						choice_dir = 0;
@@ -196,7 +195,6 @@ int main(int argc, char **argv){
 					case 43: //h aka go back
 						printf("%s\n","goin to parent dir");
 						if(strcmp(dir,"/")){
-							printf("nisem se v root, LP\n");
 							int substrend = find_nth_last_char(dir, '/', 2);
 							if(!substrend){
 								strcpy(dir, "/");
@@ -206,7 +204,6 @@ int main(int argc, char **argv){
 								free(dir_substr);
 							}
 						}
-						printf("NOV PARENT DIR: %s\n", dir);
 						choice_dir = 0;
 						content_start = 0;
 						break;
@@ -227,30 +224,89 @@ int main(int argc, char **argv){
 						}
 						break;
 					case 46:
-						printf("goin in hot\n");
 						printf("dir....%s\nsubidr.....%s\n",dir, subdirs->str[choice_dir]);
 						strcat(dir,subdirs->str[choice_dir]);
 						if(is_dir(dir)){
 							strcat(dir,"/");
 							choice_dir = 0;
 							content_start = 0;
-							printf("NOVIDIR: %s\n",dir);
 						}
 						else{
 							//odpri file
-							//poglej se ce se odpre v terminalu
-							//ce ja spawnaj prej se terminal in
-							//odpri program v njemu
-							printf("odpiram file");
-							char *cmd = (char *)malloc((5+strlen(dir))*sizeof(char));
-							strcpy(cmd, "xdg-open ");
-							strcat(cmd, dir);
-							strcat(cmd, " &");
-							printf("cmd: %s\n",cmd);
-							int status = system(cmd);
-							free(cmd);
+							//check if it needs to be opened in a terminal
+							int status;
+							//cat /usr/share/applications/nvim.desktop | grep Terminal | cut -d'=' -f2
+							//first get the corresponding .desktop file
+							//xdg-mime query filetype ~/Downloads/faces/testing/001.jpg
+							char *query_filetype_cmd = (char *)malloc((25+strlen(dir))*sizeof(char));
+							strcpy(query_filetype_cmd, "xdg-mime query filetype ");
+							strcat(query_filetype_cmd, dir);
+							printf("query filetype cmd: %s\n", query_filetype_cmd);
+
+							FILE *fp;
+							char filetype[1035];
+
+							fp = popen(query_filetype_cmd, "r");
+							if (fp == NULL) {
+							printf("Failed to run command\n" );
+							exit(1);
+							}
+
+							//while (fgets(path, sizeof(path), fp) != NULL) {
+							fgets(filetype, sizeof(filetype), fp);
+							pclose(fp);
+
+							char *desktop_file_cmd = (char *)malloc((24+strlen(filetype))*sizeof(char));
+							strcpy(desktop_file_cmd, "xdg-mime query default ");
+							strcat(desktop_file_cmd, filetype);
+
+							char df[1035];
+							fp = popen(desktop_file_cmd, "r");
+							if(fp == NULL){
+								printf("Failed to run command\n");
+								exit(1);
+							}
+							fgets(df, sizeof(df), fp);
+							df[strlen(df)-1]='\0';
+							pclose(fp);
+
+							//now check if it needs to be opened in the terminal
+							char *is_term_cmd = (char *)malloc((30+strlen(df)+33)*sizeof(char));
+							strcpy(is_term_cmd, "cat /usr/share/applications/");
+							strcat(is_term_cmd, df);
+							strcat(is_term_cmd, " | grep Terminal | cut -d'=' -f2");
+
+							char is_term[7];
+							fp = popen(is_term_cmd, "r");
+							if(fp == NULL){
+								printf("Failed to run cmd\n");
+								exit(1);
+							}
+							fgets(is_term, sizeof(is_term), fp);
+							is_term[strlen(is_term)-1] = '\0';
+							printf("is_term: %s\n", is_term);
+							if(!strcmp(is_term, "true")){
+								char *cmd = (char *)malloc((11+strlen(dir))*sizeof(char));
+								strcpy(cmd, "st -e xdg-open ");
+								strcat(cmd, dir);
+								strcat(cmd, " &");
+								status = system(cmd);
+								printf("status: %d\n", status);
+								free(cmd);
+
+
+							}else{
+								char *cmd = (char *)malloc((11+strlen(dir))*sizeof(char));
+								strcpy(cmd, "xdg-open ");
+								strcat(cmd, dir);
+								strcat(cmd, " &");
+								status = system(cmd);
+								printf("status: %d\n", status);
+								free(cmd);
+
+							}
+							//exit(1);
 						}
-						printf("pridem sploh iz tega sranja?");
 						break;
 					default:
 						printf("%s\n","kpress");
@@ -268,6 +324,7 @@ int main(int argc, char **argv){
 			default:
 				break;
 		}
+		//draw(dpy, screen, win, gc, wa, subdirs, choice_dir, content_start);
 		ls_free(subdirs);
 	}
 	return(0);

@@ -22,6 +22,7 @@ int is_dir(const char *path) {
 }
 
 ls_ret *ls(char *dir_name){
+	printf("cekiram subdire za %s\n", dir_name);
 	ls_ret *lr = (ls_ret *)malloc(sizeof(ls_ret));
 	char **ls_dir;
 	int num_dir = 0;
@@ -70,13 +71,13 @@ int find_nth_last_char(char *str, char target, int pos){
 	return -1;
 }
 char *substr(char *str, int start, int finish){
-	printf("length %d\n",finish-start);
 	int x = 0;
 	char *ret = (char *)malloc((finish-start)*sizeof(char));
 	for(int i=start;i<finish;i++){
 		ret[x] = str[i];
 		x++;
 	}
+	ret[x] = '\0';
 	return ret;
 }
 void draw(Display *dpy, int screen, Window win, GC gc, XWindowAttributes wa, ls_ret *subdirs, int selected_dir, int content_start){
@@ -116,6 +117,36 @@ int dir_empty(ls_ret *dirs){
 		return 1;
 	}
 	return 0;
+}
+
+char *handle_special_chars(char *str){
+	int num_of_spec_chars = 0;
+	for(int i=0;i<strlen(str);i++){
+		if(str[i] == ' '){
+			num_of_spec_chars++;
+		}
+	}
+	if(num_of_spec_chars == 0){
+		return str;
+	}
+	printf("num_of_spec_chars: %d\n", num_of_spec_chars);
+	char *ret = (char *)malloc((strlen(str)+num_of_spec_chars+1)*sizeof(char));
+	int x=0;
+	for(int i=0;i<strlen(str);i++){
+		if(str[i] == ' '){
+			ret[x] = '\\';
+			x++;
+			ret[x] = ' ';
+		}
+		else{
+			ret[x] = str[i];
+		}
+		x++;
+	}
+	ret[x]='\0';
+	printf("ret: %s\n", ret);
+	free(str);
+	return ret;
 }
 
 int main(int argc, char **argv){
@@ -223,6 +254,8 @@ int main(int argc, char **argv){
 							}else{
 								char *dir_substr = substr(dir, 0, substrend+1);
 								strcpy(dir, dir_substr);
+								printf("substrend: %d\n", substrend);
+								printf("parent DIr: %s\n", dir);
 								free(dir_substr);
 							}
 						}
@@ -230,6 +263,7 @@ int main(int argc, char **argv){
 						content_start = 0;
 						ls_free(subdirs);
 						subdirs = ls(dir);
+						printf("SUBDIRS LEN %d\n",subdirs->len);
 						break;
 					case 44: //j aka go down
 						if(choice_dir < subdirs->len-1){
@@ -271,6 +305,10 @@ int main(int argc, char **argv){
 							//cat /usr/share/applications/nvim.desktop | grep Terminal | cut -d'=' -f2
 							//first get the corresponding .desktop file
 							//xdg-mime query filetype ~/Downloads/faces/testing/001.jpg
+
+							//escape potential special characters
+							dir_tmp = handle_special_chars(dir_tmp);
+							printf("popravljeno: %s\n", dir_tmp);
 							char *query_filetype_cmd = (char *)malloc((25+strlen(dir_tmp))*sizeof(char));
 							strcpy(query_filetype_cmd, "xdg-mime query filetype ");
 							strcat(query_filetype_cmd, dir_tmp);
@@ -287,7 +325,9 @@ int main(int argc, char **argv){
 
 							//while (fgets(path, sizeof(path), fp) != NULL) {
 							fgets(filetype, sizeof(filetype), fp);
+							filetype[strlen(filetype)-1] = '\0';
 							pclose(fp);
+							printf("filetype: %s\n", filetype);
 
 							char *desktop_file_cmd = (char *)malloc((24+strlen(filetype))*sizeof(char));
 							strcpy(desktop_file_cmd, "xdg-mime query default ");
@@ -300,7 +340,7 @@ int main(int argc, char **argv){
 								exit(1);
 							}
 							fgets(df, sizeof(df), fp);
-							df[strlen(df)-1]='\0';
+							df[strlen(df)-1] = '\0';
 							pclose(fp);
 
 							//now check if it needs to be opened in the terminal
@@ -333,6 +373,7 @@ int main(int argc, char **argv){
 								strcpy(cmd, "xdg-open ");
 								strcat(cmd, dir_tmp);
 								strcat(cmd, " &");
+								printf("CMD: %s\n", cmd);
 								status = system(cmd);
 								printf("status: %d\n", status);
 								free(cmd);
@@ -342,9 +383,7 @@ int main(int argc, char **argv){
 							free(desktop_file_cmd);
 							free(is_term_cmd);
 							free(dir_tmp);
-							//exit(1);
 						}
-						//continue;
 						break;
 					default:
 						printf("%s\n","kpress");

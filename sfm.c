@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 typedef struct ls_rets{
 	char ** str;
@@ -21,8 +22,42 @@ int is_dir(const char *path) {
    return S_ISDIR(statbuf.st_mode);
 }
 
+char *str2lower(char *str){
+	char *ret = (char *)malloc((strlen(str)+1)*sizeof(char));
+	strcpy(ret, str);
+	for(int i = 0; ret[i]; i++){
+  		ret[i] = tolower(ret[i]);
+	}
+	return ret;
+}
+void dir_sort(ls_ret *lr){
+	int menjava = 1;
+	int ret;
+	char *tmp;
+	while(menjava){
+		menjava = 0;
+		for(int i=0;i<lr->len-1;i++){
+			char *tolwr1 = str2lower(lr->str[i]);
+			char *tolwr2 = str2lower(lr->str[i+1]);
+			//ret = strcmp(lr->str[i], lr->str[i+1]);
+			ret = strcmp(tolwr1, tolwr2);
+			free(tolwr1);
+			free(tolwr2);
+			if(ret>0){
+				tmp = (char *)malloc((strlen(lr->str[i+1])+1)*sizeof(char));
+				strcpy(tmp, lr->str[i+1]);
+				strcat(tmp,"\0");
+				free(lr->str[i+1]);
+				lr->str[i+1] = lr->str[i];
+				lr->str[i] = tmp;
+				menjava = 1;
+			}
+		}
+	}
+}
+
+
 ls_ret *ls(char *dir_name){
-	printf("cekiram subdire za %s\n", dir_name);
 	ls_ret *lr = (ls_ret *)malloc(sizeof(ls_ret));
 	char **ls_dir;
 	int num_dir = 0;
@@ -44,6 +79,8 @@ ls_ret *ls(char *dir_name){
 	}
 	lr->str = ls_dir;
 	lr->len = num_dir;
+	//pa se sortiraj po abecedi
+	dir_sort(lr);
 	
 	return lr;
 }
@@ -150,7 +187,6 @@ char *handle_special_chars(char *str){
 	return ret;
 }
 int remove_file_dir(char *target){
-	printf("sem v dir %s\n", target);
 	DIR *d;
 	struct dirent *dir;
 	d = opendir(target);
@@ -165,16 +201,12 @@ int remove_file_dir(char *target){
 				strcpy(subdir_name, target);
 				strcat(subdir_name, "/");
 				strcat(subdir_name, dir->d_name);
-				printf("cekiram %s\n", subdir_name);
 				if(is_dir(subdir_name)){
-					printf("je dir, grem vanga\n");
 					remove_file_dir(subdir_name);
 				}else{	//ce je navadn fajl, ga kr zbris
-					printf("je navadn fajl, brisem");
 					remove(subdir_name);
 				}
 				remove(subdir_name);
-				printf("brisem dir: %s\n", subdir_name);
 				free(subdir_name);
 			}
 			//na koncu je garantirano, da bo dir prazen ga samo zbrisi in to je to
@@ -189,6 +221,13 @@ int remove_file_dir(char *target){
 }
 
 int main(int argc, char **argv){
+
+	
+	/*
+	char *ok = str2lower("NeK  StriNg");
+	printf("%s\n", ok);
+	exit(1);
+	*/
 
 	Display *dpy;
 	Window root, win;
@@ -318,12 +357,18 @@ int main(int argc, char **argv){
 						char *delete_target = (char *)malloc((strlen(dir)+strlen(subdirs->str[choice_dir])+1)*sizeof(char));
 						strcpy(delete_target, dir);
 						strcat(delete_target, subdirs->str[choice_dir]);
-						printf("okoko %s\n", delete_target);
 
 						//FILE *fp;
 						char conformation[6];
 
-						fp = popen("echo \"no\nyes\" | dmenu -p \"delete dir?\" -c", "r");
+						char *cmd = (char *)malloc(40+strlen(subdirs->str[choice_dir])*sizeof(char));
+						strcpy(cmd, "echo \"no\nyes\" | dmenu -p \"delete ");
+						strcat(cmd, subdirs->str[choice_dir]);
+						strcat(cmd, "?\" -c");
+						printf("cmd: %s len: %ld\n", cmd, strlen(cmd));
+						//exit(2);
+						//fp = popen("echo \"no\nyes\" | dmenu -p \"delete dir?\" -c", "r");
+						fp = popen(cmd, "r");
 						if (fp == NULL) {
 						printf("Failed to run command\n" );
 						exit(1);

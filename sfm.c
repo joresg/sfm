@@ -190,11 +190,11 @@ int remove_file_dir(char *target){
 	DIR *d;
 	struct dirent *dir;
 	d = opendir(target);
+	int status;
 	if(d){
 		char *subdir_name;
 		while((dir = readdir(d)) != NULL){
-			//if(strcmp(dir->d_name,".") && strcmp(dir->d_name,"..")){
-			if(dir->d_name[0] != '.'){
+			if(strcmp(dir->d_name,".") && strcmp(dir->d_name,"..")){
 				//pojdi cez vse fajle, ce je ksn od njih imenik
 				//pejt rekurzivno vanj
 				subdir_name = (char *)malloc((strlen(target)+strlen(dir->d_name)+2)*sizeof(char));
@@ -204,17 +204,15 @@ int remove_file_dir(char *target){
 				if(is_dir(subdir_name)){
 					remove_file_dir(subdir_name);
 				}else{	//ce je navadn fajl, ga kr zbris
-					remove(subdir_name);
+					status = remove(subdir_name);
 				}
-				remove(subdir_name);
 				free(subdir_name);
 			}
-			//na koncu je garantirano, da bo dir prazen ga samo zbrisi in to je to
 		}
-		//brisi se root dir
-		remove(target);
+		//na koncu je garantirano, da bo dir prazen ga samo zbrisi in to je to
+		status = remove(target);
 		closedir(d);
-		return(1);
+		return(status);
 	}
 	//ni dir
 	return remove(target);

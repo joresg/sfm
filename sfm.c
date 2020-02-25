@@ -288,6 +288,7 @@ int main(int argc, char **argv){
 						printf("mkdir\n");
 						FILE *fp;
 						char dir_name[1035];
+						strcpy(dir_name, "");
 
 						fp = popen("echo \"\" | dmenu -p \"dir name\" -c", "r");
 						if (fp == NULL) {
@@ -299,7 +300,9 @@ int main(int argc, char **argv){
 						fgets(dir_name, sizeof(dir_name), fp);
 						dir_name[strlen(dir_name)-1] = '\0';
 						pclose(fp);
-						printf("dir name: %s\n", dir_name);
+						if(strlen(dir_name) == 0){
+							continue;
+						}
 						char *new_dir = (char *)malloc((strlen(dir)+strlen(dir_name)+1)*sizeof(char));
 						strcpy(new_dir, dir);
 						strcat(new_dir, dir_name);

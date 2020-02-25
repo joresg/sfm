@@ -10,6 +10,9 @@
 #include <stdbool.h>
 #include <ctype.h>
 
+
+#define POSITIVE(n) ((n) < 0 ? 0 - (n) : (n))
+
 typedef struct ls_rets{
 	char ** str;
 	int len;
@@ -67,7 +70,6 @@ ls_ret *ls(char *dir_name){
 	d = opendir(dir_name);
 	if(d){
 		while((dir = readdir(d)) != NULL){
-			//if(strcmp(dir->d_name,".") && strcmp(dir->d_name,"..")){
 			if(dir->d_name[0] != '.'){
 				ls_dir[num_dir] = (char *)malloc(100*sizeof(char));
 				strcpy(ls_dir[num_dir], dir->d_name);
@@ -79,7 +81,7 @@ ls_ret *ls(char *dir_name){
 	}
 	lr->str = ls_dir;
 	lr->len = num_dir;
-	//pa se sortiraj po abecedi
+	//sort alphabetically
 	dir_sort(lr);
 	
 	return lr;
@@ -108,6 +110,7 @@ int find_nth_last_char(char *str, char target, int pos){
 	}
 	return -1;
 }
+
 char *substr(char *str, int start, int finish){
 	int x = 0;
 	char *ret = (char *)malloc((finish-start)*sizeof(char));
@@ -118,6 +121,7 @@ char *substr(char *str, int start, int finish){
 	ret[x] = '\0';
 	return ret;
 }
+
 void draw(Display *dpy, int screen, Window win, GC gc, XWindowAttributes wa, ls_ret *subdirs, int selected_dir, int content_start){
 	//get window attributes firs
 	XGetWindowAttributes(dpy, win, &wa);
@@ -126,7 +130,6 @@ void draw(Display *dpy, int screen, Window win, GC gc, XWindowAttributes wa, ls_
 	XFillRectangle(dpy, win, gc, 0, 0, wa.width, wa.height);
 	//draw text
 	XSetForeground(dpy, gc, WhitePixel(dpy, screen));
-
 
 	char **subdirs_name = subdirs->str;
 	//izpisi vse directory-je
@@ -194,39 +197,27 @@ int remove_file_dir(char *target){
 	if(d){
 		char *subdir_name;
 		while((dir = readdir(d)) != NULL){
-			if(strcmp(dir->d_name,".") && strcmp(dir->d_name,"..")){
-				//pojdi cez vse fajle, ce je ksn od njih imenik
-				//pejt rekurzivno vanj
+			if(POSITIVE(strcmp(dir->d_name,".")) && POSITIVE(strcmp(dir->d_name,".."))){
 				subdir_name = (char *)malloc((strlen(target)+strlen(dir->d_name)+2)*sizeof(char));
 				strcpy(subdir_name, target);
 				strcat(subdir_name, "/");
 				strcat(subdir_name, dir->d_name);
 				if(is_dir(subdir_name)){
 					remove_file_dir(subdir_name);
-				}else{	//ce je navadn fajl, ga kr zbris
+				}else{
 					status = remove(subdir_name);
 				}
 				free(subdir_name);
 			}
 		}
-		//na koncu je garantirano, da bo dir prazen ga samo zbrisi in to je to
 		status = remove(target);
 		closedir(d);
 		return(status);
 	}
-	//ni dir
 	return remove(target);
 }
 
 int main(int argc, char **argv){
-
-	
-	/*
-	char *ok = str2lower("NeK  StriNg");
-	printf("%s\n", ok);
-	exit(1);
-	*/
-
 	Display *dpy;
 	Window root, win;
 	int screen;
@@ -248,46 +239,22 @@ int main(int argc, char **argv){
 	XParseColor(dpy, cmap, "#198c8f", &color1);
 	XAllocColor(dpy, cmap, &color1);
 
-	//set window attributes
 	swa.background_pixel = BlackPixel(dpy, screen);
 	//swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | VisibilityChangeMask;
 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
 
-	//create window
 	win = XCreateWindow(dpy, root, winx, winy, winw, winh, 2, CopyFromParent, CopyFromParent, CopyFromParent, CWBackPixel | CWEventMask, &swa);
 	XStoreName(dpy, win, "sfm");
 	XGetWindowAttributes(dpy, win, &wa);
 
-	//load font which you will use
-	//with the given CG
-	/*
-	int npaths_return;
-	char **gfp = XGetFontPath(dpy, &npaths_return); 
-	printf("num of paths: %d\n",npaths_return);
-	for(int i=0;i<npaths_return;i++){
-		printf("%s\n",gfp[i]);
-	}
-	*/
-
-	/*
-	char **font_dirs = (char **)malloc(sizeof(char *));
-	font_dirs[0] = (char *)malloc(40*sizeof(char));
-	strcpy(font_dirs[0], "/usr/share/fonts/Ubuntu");
-	XSetFontPath(dpy, font_dirs, 4);
-	*/
-
 	Font font = XLoadFont(dpy, "-adobe-utopia-regular-r-normal--33-240-100-100-p-180-iso8859-14");	
 	
-	//set GC attributes
 	XGCValues sgc;
 	sgc.font = font;
 	gc = XCreateGC(dpy, win, GCFont, &sgc);
 
-	//map window (show it) and select it as input
 	XMapWindow(dpy, win);
-	//XSelectInput(dpy, win, ExposureMask | KeyPressMask | KeyReleaseMask | VisibilityChangeMask);
 
-	//handle events
 	XEvent event;
 
 	char *dir = (char *)malloc(500*sizeof(char));
@@ -319,7 +286,7 @@ int main(int argc, char **argv){
 						strcpy(dir, "/home/joresg/");
 						ls_free(subdirs);
 						subdirs = ls(dir);
-						choice_dir = 0;
+						choice_dir = content_start = 0;
 						break;
 					case 58: //make directory
 						printf("mkdir\n");
@@ -350,7 +317,7 @@ int main(int argc, char **argv){
 						free(new_dir);
 						subdirs = ls(dir);
 						break;
-					case 40: //remove dir of file
+					case 40: //remove dir or file
 						printf("remove: %s%s\n", dir, subdirs->str[choice_dir]);
 						char *delete_target = (char *)malloc((strlen(dir)+strlen(subdirs->str[choice_dir])+1)*sizeof(char));
 						strcpy(delete_target, dir);
@@ -364,8 +331,6 @@ int main(int argc, char **argv){
 						strcat(cmd, subdirs->str[choice_dir]);
 						strcat(cmd, "?\" -c");
 						printf("cmd: %s len: %ld\n", cmd, strlen(cmd));
-						//exit(2);
-						//fp = popen("echo \"no\nyes\" | dmenu -p \"delete dir?\" -c", "r");
 						fp = popen(cmd, "r");
 						if (fp == NULL) {
 						printf("Failed to run command\n" );
@@ -438,13 +403,10 @@ int main(int argc, char **argv){
 							subdirs = ls(dir);
 						}
 						else{
-							//odpri file
-							//check if it needs to be opened in a terminal
+							//check if file needs to be opened in a terminal
+							//if so spawn a shell and execute program in it
 							int status;
-							//cat /usr/share/applications/nvim.desktop | grep Terminal | cut -d'=' -f2
 							//first get the corresponding .desktop file
-							//xdg-mime query filetype ~/Downloads/faces/testing/001.jpg
-
 							//escape potential special characters
 							dir_tmp = handle_special_chars(dir_tmp);
 							printf("popravljeno: %s\n", dir_tmp);

@@ -32,7 +32,8 @@ ls_ret *ls(char *dir_name){
 	d = opendir(dir_name);
 	if(d){
 		while((dir = readdir(d)) != NULL){
-			if(strcmp(dir->d_name,".") && strcmp(dir->d_name,"..")){
+			//if(strcmp(dir->d_name,".") && strcmp(dir->d_name,"..")){
+			if(dir->d_name[0] != '.'){
 				ls_dir[num_dir] = (char *)malloc(100*sizeof(char));
 				strcpy(ls_dir[num_dir], dir->d_name);
 				num_dir++;
@@ -148,6 +149,44 @@ char *handle_special_chars(char *str){
 	free(str);
 	return ret;
 }
+int remove_file_dir(char *target){
+	printf("sem v dir %s\n", target);
+	DIR *d;
+	struct dirent *dir;
+	d = opendir(target);
+	if(d){
+		char *subdir_name;
+		while((dir = readdir(d)) != NULL){
+			//if(strcmp(dir->d_name,".") && strcmp(dir->d_name,"..")){
+			if(dir->d_name[0] != '.'){
+				//pojdi cez vse fajle, ce je ksn od njih imenik
+				//pejt rekurzivno vanj
+				subdir_name = (char *)malloc((strlen(target)+strlen(dir->d_name)+2)*sizeof(char));
+				strcpy(subdir_name, target);
+				strcat(subdir_name, "/");
+				strcat(subdir_name, dir->d_name);
+				printf("cekiram %s\n", subdir_name);
+				if(is_dir(subdir_name)){
+					printf("je dir, grem vanga\n");
+					remove_file_dir(subdir_name);
+				}else{	//ce je navadn fajl, ga kr zbris
+					printf("je navadn fajl, brisem");
+					remove(subdir_name);
+				}
+				remove(subdir_name);
+				printf("brisem dir: %s\n", subdir_name);
+				free(subdir_name);
+			}
+			//na koncu je garantirano, da bo dir prazen ga samo zbrisi in to je to
+		}
+		//brisi se root dir
+		remove(target);
+		closedir(d);
+		return(1);
+	}
+	//ni dir
+	return remove(target);
+}
 
 int main(int argc, char **argv){
 
@@ -244,6 +283,60 @@ int main(int argc, char **argv){
 						ls_free(subdirs);
 						subdirs = ls(dir);
 						choice_dir = 0;
+						break;
+					case 58: //make directory
+						printf("mkdir\n");
+						FILE *fp;
+						char dir_name[1035];
+
+						fp = popen("echo \"\" | dmenu -p \"dir name\" -c", "r");
+						if (fp == NULL) {
+						printf("Failed to run command\n" );
+						exit(1);
+						}
+
+						//while (fgets(path, sizeof(path), fp) != NULL) {
+						fgets(dir_name, sizeof(dir_name), fp);
+						dir_name[strlen(dir_name)-1] = '\0';
+						pclose(fp);
+						printf("dir name: %s\n", dir_name);
+						char *new_dir = (char *)malloc((strlen(dir)+strlen(dir_name)+1)*sizeof(char));
+						strcpy(new_dir, dir);
+						strcat(new_dir, dir_name);
+						printf("new dir path: %s\n", new_dir);
+						int status;
+						status = mkdir(new_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+						ls_free(subdirs);
+						free(new_dir);
+						subdirs = ls(dir);
+						break;
+					case 40: //remove dir of file
+						printf("remove: %s%s\n", dir, subdirs->str[choice_dir]);
+						char *delete_target = (char *)malloc((strlen(dir)+strlen(subdirs->str[choice_dir])+1)*sizeof(char));
+						strcpy(delete_target, dir);
+						strcat(delete_target, subdirs->str[choice_dir]);
+						printf("okoko %s\n", delete_target);
+
+						//FILE *fp;
+						char conformation[6];
+
+						fp = popen("echo \"no\nyes\" | dmenu -p \"delete dir?\" -c", "r");
+						if (fp == NULL) {
+						printf("Failed to run command\n" );
+						exit(1);
+						}
+						fgets(conformation, sizeof(conformation), fp);
+						conformation[strlen(conformation)-1] = '\0';
+						pclose(fp);
+						printf("conformation: %s\n", conformation);
+						if(!strcmp(conformation, "yes")){
+							printf("deleting...");
+							status = remove_file_dir(delete_target);
+							printf("STATUS: %d\n", status);
+						}
+						free(delete_target);
+						ls_free(subdirs);
+						subdirs = ls(dir);
 						break;
 					case 43: //h aka go back
 						printf("%s\n","goin to parent dir");

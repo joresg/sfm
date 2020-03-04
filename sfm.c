@@ -134,18 +134,19 @@ void draw(Display *dpy, int screen, Window win, GC gc, XftDraw *d, XftFont *font
 
 	char **subdirs_name = subdirs->str;
 	//izpisi vse directory-je
-	int textx = 10, texty = font->height, num_of_displayed_dirs = wa.height/font->height;
+	int font_asc_dsc = font->ascent + font->descent;
+	int textx = 100, texty = font->ascent, num_of_displayed_dirs = wa.height/font_asc_dsc;
 
 	if(subdirs->len == 0){
 		//XDrawString(dpy, win, gc, textx, texty, "EMPTY", 5);
-		XftDrawString8(d, &colors[0], font, textx, texty, "EMPTY", 5);
+		XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)"EMPTY", 5);
 	}else{
 		for(int i=content_start;i<subdirs->len && i<content_start+num_of_displayed_dirs;i++){
 			if(i == selected_dir){
 				printf("i: %d cd: %d\n",i,selected_dir);
 				//XSetForeground(dpy, gc, WhitePixel(dpy, screen));
 				//XFillRectangle(dpy, win, gc, 0, (selected_dir-content_start)*font->height, wa.width, font->height);
-				XftDrawRect(d, &colors[1], 0, (selected_dir-content_start)*font->height, wa.width, font->height);
+				XftDrawRect(d, &colors[1], 0, (selected_dir-content_start)*font_asc_dsc, wa.width, font_asc_dsc);
 				//XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
 			}
 			/*
@@ -154,7 +155,7 @@ void draw(Display *dpy, int screen, Window win, GC gc, XftDraw *d, XftFont *font
 			}
 			*/
 			XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
-			texty+=font->height;
+			texty+=font_asc_dsc;
 		}
 	}
 }
@@ -249,6 +250,8 @@ int main(int argc, char **argv){
 	const char * fontname = "Ubuntu Mono:size=60";
 	XftFont *font = XftFontOpenName(dpy, screen, fontname);
 	//XftFont* font = XftFontOpen(dpy, DefaultScreen(dpy), XFT_FAMILY, XftTypeString, "ubuntu", XFT_SIZE, XftTypeDouble, 14.0, NULL);
+	printf("ascent: %d, descent: %d, height: %d\n", font->ascent, font->descent, font->height);
+	//exit(1);
 
 	XftColor *colors = (XftColor *)malloc(2*sizeof(XftColor));
 	//Xft colors
@@ -300,14 +303,15 @@ int main(int argc, char **argv){
 	char *dir = (char *)malloc(500*sizeof(char));
 	strcpy(dir, "/home/joresg/");
 
+	int font_asc_dsc = font->ascent + font->descent;
 	int choice_dir = 0;
-	int content_start = 0, num_of_displayed_dirs = wa.height/font->height;
+	int content_start = 0, num_of_displayed_dirs = wa.height/font_asc_dsc;
 	XWindowAttributes rwa;
 	ls_ret *subdirs = ls(dir);
 	int run = 1;
 	while(run && !XNextEvent(dpy, &event)){
 		XGetWindowAttributes(dpy, win, &wa);
-		num_of_displayed_dirs = wa.height/font->height;
+		num_of_displayed_dirs = wa.height/font_asc_dsc;
 		//subdirs = ls(dir);
 		//get all subdirs
 		printf("is %s dir? %d\n",dir, is_dir(dir));

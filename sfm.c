@@ -19,6 +19,12 @@ typedef struct ls_rets{
 	int len;
 }ls_ret;
 
+typedef struct _clr_scheme{
+	XftColor background;
+	XftColor foreground;
+	XftColor highlight;
+}color_scheme;
+
 int is_dir(const char *path) {
    struct stat statbuf;
    if (stat(path, &statbuf) != 0)
@@ -123,30 +129,31 @@ char *substr(char *str, int start, int finish){
 	return ret;
 }
 
-void draw(Display *dpy, int screen, Window win, GC gc, XftDraw *d, XftFont *font, XftColor *colors, XWindowAttributes wa, ls_ret *subdirs, int selected_dir, int content_start){
+void draw(Display *dpy, int screen, Window win, GC gc, XftDraw *d, XftFont *font, color_scheme *colors, XWindowAttributes wa, ls_ret *subdirs, int selected_dir, int content_start){
 	//get window attributes firs
 	XGetWindowAttributes(dpy, win, &wa);
 	//first draw background
-	XSetForeground(dpy, gc, BlackPixel(dpy, screen));
-	XFillRectangle(dpy, win, gc, 0, 0, wa.width, wa.height);
-	//draw text
-	XSetForeground(dpy, gc, WhitePixel(dpy, screen));
+	
+	//XSetForeground(dpy, gc, BlackPixel(dpy, screen));
+	//XFillRectangle(dpy, win, gc, 0, 0, wa.width, wa.height);
+	
+	XftDrawRect(d, &colors->background , 0, 0, wa.width, wa.height);
 
 	char **subdirs_name = subdirs->str;
 	//izpisi vse directory-je
 	int font_asc_dsc = font->ascent + font->descent;
-	int textx = 100, texty = font->ascent, num_of_displayed_dirs = wa.height/font_asc_dsc;
+	int textx = 10, texty = font->ascent, num_of_displayed_dirs = wa.height/font_asc_dsc;
 
 	if(subdirs->len == 0){
 		//XDrawString(dpy, win, gc, textx, texty, "EMPTY", 5);
-		XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)"EMPTY", 5);
+		//XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)"EMPTY", 5);
 	}else{
 		for(int i=content_start;i<subdirs->len && i<content_start+num_of_displayed_dirs;i++){
 			if(i == selected_dir){
 				printf("i: %d cd: %d\n",i,selected_dir);
 				//XSetForeground(dpy, gc, WhitePixel(dpy, screen));
 				//XFillRectangle(dpy, win, gc, 0, (selected_dir-content_start)*font->height, wa.width, font->height);
-				XftDrawRect(d, &colors[1], 0, (selected_dir-content_start)*font_asc_dsc, wa.width, font_asc_dsc);
+				XftDrawRect(d, &colors->highlight, 0, (selected_dir-content_start)*font_asc_dsc, wa.width, font_asc_dsc);
 				//XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
 			}
 			/*
@@ -154,7 +161,7 @@ void draw(Display *dpy, int screen, Window win, GC gc, XftDraw *d, XftFont *font
 				XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
 			}
 			*/
-			XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
+			XftDrawString8(d, &colors->foreground, font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
 			texty+=font_asc_dsc;
 		}
 	}
@@ -242,44 +249,48 @@ int main(int argc, char **argv){
 	Bool xkbar = XkbSetDetectableAutoRepeat(dpy, True, &supported_rtrn);
 
 	Colormap cmap = DefaultColormap(dpy, screen);
-	/*
 	XParseColor(dpy, cmap, "#198c8f", &color1);
 	XAllocColor(dpy, cmap, &color1);
-	*/
 
-	const char * fontname = "Ubuntu Mono:size=60";
+	const char * fontname = "Ubuntu Mono:size=16";
 	XftFont *font = XftFontOpenName(dpy, screen, fontname);
 	//XftFont* font = XftFontOpen(dpy, DefaultScreen(dpy), XFT_FAMILY, XftTypeString, "ubuntu", XFT_SIZE, XftTypeDouble, 14.0, NULL);
 	printf("ascent: %d, descent: %d, height: %d\n", font->ascent, font->descent, font->height);
-	//exit(1);
 
-	XftColor *colors = (XftColor *)malloc(2*sizeof(XftColor));
+	color_scheme *colors = (color_scheme *)malloc(sizeof(color_scheme));
 	//Xft colors
-	XRenderColor xrcolor1, xrcolor2;
+	XRenderColor xrcolor1, xrcolor2, xrcolor3;
 	/*
 	xrcolor1.red = 65535;
 	xrcolor1.green = 65535;
 	xrcolor1.blue = 65535;
 	*/
-	xrcolor1.red = 65535;
-	xrcolor1.green = 65535;
-	xrcolor1.blue = 65535;
+	xrcolor1.red = 223*257;
+	xrcolor1.green = 172*257;
+	xrcolor1.blue = 160*257;
 
-	xrcolor2.red = 99999;
-	xrcolor2.green = 99999;
-	xrcolor2.blue = 99999;
+	xrcolor2.red = 18*257;
+	xrcolor2.green = 15*257;
+	xrcolor2.blue = 28*257;
+
+	xrcolor3.red = 24*257;
+	xrcolor3.green = 45*257;
+	xrcolor3.blue = 87*257;
 
 
 	XftColor xftcolor1;
 	XftColor xftcolor2;
+	XftColor xftcolor3;
 
 	XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor1,&xftcolor1);
 	XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor2,&xftcolor2);
+	XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor3,&xftcolor3);
 
-	colors[0] = xftcolor1;
-	colors[1] = xftcolor2;
+	colors->background = xftcolor2;
+	colors->foreground = xftcolor1;
+	colors->highlight = xftcolor3;
 
-	swa.background_pixel = BlackPixel(dpy, screen);
+	//swa.background_pixel = BlackPixel(dpy, screen);
 	//swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | VisibilityChangeMask;
 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
 
@@ -557,6 +568,7 @@ int main(int argc, char **argv){
 	}
 	XftColorFree(dpy,DefaultVisual(dpy,0),DefaultColormap(dpy,0),&xftcolor1);
 	XftColorFree(dpy,DefaultVisual(dpy,0),DefaultColormap(dpy,0),&xftcolor2);
+	XftColorFree(dpy,DefaultVisual(dpy,0),DefaultColormap(dpy,0),&xftcolor3);
 	free(subdirs);
 	return(0);
 }

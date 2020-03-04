@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <X11/Xft/Xft.h>
 
 
 #define POSITIVE(n) ((n) < 0 ? 0 - (n) : (n))
@@ -122,7 +123,7 @@ char *substr(char *str, int start, int finish){
 	return ret;
 }
 
-void draw(Display *dpy, int screen, Window win, GC gc, XWindowAttributes wa, ls_ret *subdirs, int selected_dir, int content_start){
+void draw(Display *dpy, int screen, Window win, GC gc, XftDraw *d, XftFont *font, XftColor *colors, XWindowAttributes wa, ls_ret *subdirs, int selected_dir, int content_start){
 	//get window attributes firs
 	XGetWindowAttributes(dpy, win, &wa);
 	//first draw background
@@ -133,23 +134,27 @@ void draw(Display *dpy, int screen, Window win, GC gc, XWindowAttributes wa, ls_
 
 	char **subdirs_name = subdirs->str;
 	//izpisi vse directory-je
-	int textx = 10, texty = 30, num_of_displayed_dirs = wa.height/40;
+	int textx = 10, texty = font->height, num_of_displayed_dirs = wa.height/font->height;
 
 	if(subdirs->len == 0){
-		XDrawString(dpy, win, gc, textx, texty, "EMPTY", 5);
+		//XDrawString(dpy, win, gc, textx, texty, "EMPTY", 5);
+		XftDrawString8(d, &colors[0], font, textx, texty, "EMPTY", 5);
 	}else{
 		for(int i=content_start;i<subdirs->len && i<content_start+num_of_displayed_dirs;i++){
 			if(i == selected_dir){
 				printf("i: %d cd: %d\n",i,selected_dir);
-				XSetForeground(dpy, gc, WhitePixel(dpy, screen));
-				XFillRectangle(dpy, win, gc, 0, (selected_dir-content_start)*40, wa.width, 40);
-				XSetForeground(dpy, gc, BlackPixel(dpy, screen));
-				XDrawString(dpy, win, gc, textx, texty, subdirs_name[i], strlen(subdirs_name[i]));
-			}else{
-				XSetForeground(dpy, gc, WhitePixel(dpy, screen));
-				XDrawString(dpy, win, gc, textx, texty, subdirs_name[i], strlen(subdirs_name[i]));
+				//XSetForeground(dpy, gc, WhitePixel(dpy, screen));
+				//XFillRectangle(dpy, win, gc, 0, (selected_dir-content_start)*font->height, wa.width, font->height);
+				XftDrawRect(d, &colors[1], 0, (selected_dir-content_start)*font->height, wa.width, font->height);
+				//XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
 			}
-			texty+=40;
+			/*
+			}else{
+				XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
+			}
+			*/
+			XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
+			texty+=font->height;
 		}
 	}
 }
@@ -236,8 +241,40 @@ int main(int argc, char **argv){
 	Bool xkbar = XkbSetDetectableAutoRepeat(dpy, True, &supported_rtrn);
 
 	Colormap cmap = DefaultColormap(dpy, screen);
+	/*
 	XParseColor(dpy, cmap, "#198c8f", &color1);
 	XAllocColor(dpy, cmap, &color1);
+	*/
+
+	const char * fontname = "Ubuntu Mono:size=60";
+	XftFont *font = XftFontOpenName(dpy, screen, fontname);
+	//XftFont* font = XftFontOpen(dpy, DefaultScreen(dpy), XFT_FAMILY, XftTypeString, "ubuntu", XFT_SIZE, XftTypeDouble, 14.0, NULL);
+
+	XftColor *colors = (XftColor *)malloc(2*sizeof(XftColor));
+	//Xft colors
+	XRenderColor xrcolor1, xrcolor2;
+	/*
+	xrcolor1.red = 65535;
+	xrcolor1.green = 65535;
+	xrcolor1.blue = 65535;
+	*/
+	xrcolor1.red = 65535;
+	xrcolor1.green = 65535;
+	xrcolor1.blue = 65535;
+
+	xrcolor2.red = 99999;
+	xrcolor2.green = 99999;
+	xrcolor2.blue = 99999;
+
+
+	XftColor xftcolor1;
+	XftColor xftcolor2;
+
+	XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor1,&xftcolor1);
+	XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor2,&xftcolor2);
+
+	colors[0] = xftcolor1;
+	colors[1] = xftcolor2;
 
 	swa.background_pixel = BlackPixel(dpy, screen);
 	//swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | VisibilityChangeMask;
@@ -247,11 +284,14 @@ int main(int argc, char **argv){
 	XStoreName(dpy, win, "sfm");
 	XGetWindowAttributes(dpy, win, &wa);
 
-	Font font = XLoadFont(dpy, "-adobe-utopia-regular-r-normal--33-240-100-100-p-180-iso8859-14");	
+	XftDraw *d = XftDrawCreate(dpy, win, DefaultVisual(dpy, screen), cmap);
+
+	//Font font = XLoadFont(dpy, "-adobe-utopia-regular-r-normal--33-240-100-100-p-180-iso8859-14");	
 	
-	XGCValues sgc;
-	sgc.font = font;
-	gc = XCreateGC(dpy, win, GCFont, &sgc);
+	//XGCValues sgc;
+	//sgc.font = font;
+	//gc = XCreateGC(dpy, win, GCFont, &sgc);
+	gc = XCreateGC(dpy, win, 0, NULL);
 
 	XMapWindow(dpy, win);
 
@@ -261,12 +301,13 @@ int main(int argc, char **argv){
 	strcpy(dir, "/home/joresg/");
 
 	int choice_dir = 0;
-	int content_start = 0, num_of_displayed_dirs = wa.height/40;
+	int content_start = 0, num_of_displayed_dirs = wa.height/font->height;
 	XWindowAttributes rwa;
 	ls_ret *subdirs = ls(dir);
-	while(!XNextEvent(dpy, &event)){
+	int run = 1;
+	while(run && !XNextEvent(dpy, &event)){
 		XGetWindowAttributes(dpy, win, &wa);
-		num_of_displayed_dirs = wa.height/40;
+		num_of_displayed_dirs = wa.height/font->height;
 		//subdirs = ls(dir);
 		//get all subdirs
 		printf("is %s dir? %d\n",dir, is_dir(dir));
@@ -287,6 +328,10 @@ int main(int argc, char **argv){
 						ls_free(subdirs);
 						subdirs = ls(dir);
 						choice_dir = content_start = 0;
+						break;
+					case 24:
+						//tle bo pac cleanup funkcija in cao
+						run = 0;
 						break;
 					case 58: //make directory
 						printf("mkdir\n");
@@ -504,8 +549,10 @@ int main(int argc, char **argv){
 				continue;
 				break;
 		}
-		draw(dpy, screen, win, gc, wa, subdirs, choice_dir, content_start);
+		draw(dpy, screen, win, gc, d, font, colors, wa, subdirs, choice_dir, content_start);
 	}
+	XftColorFree(dpy,DefaultVisual(dpy,0),DefaultColormap(dpy,0),&xftcolor1);
+	XftColorFree(dpy,DefaultVisual(dpy,0),DefaultColormap(dpy,0),&xftcolor2);
 	free(subdirs);
 	return(0);
 }

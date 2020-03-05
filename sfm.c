@@ -129,39 +129,44 @@ char *substr(char *str, int start, int finish){
 	return ret;
 }
 
-void draw(Display *dpy, int screen, Window win, GC gc, XftDraw *d, XftFont *font, color_scheme *colors, XWindowAttributes wa, ls_ret *subdirs, int selected_dir, int content_start){
-	//get window attributes firs
+void draw(Display *dpy, int screen, Window win, GC gc, XftDraw *d, XftFont *font, color_scheme *colors, XWindowAttributes wa, ls_ret *subdirs, int selected_dir, int content_start, char *base_dir){
+	//get window attributes first
 	XGetWindowAttributes(dpy, win, &wa);
-	//first draw background
-	
-	//XSetForeground(dpy, gc, BlackPixel(dpy, screen));
-	//XFillRectangle(dpy, win, gc, 0, 0, wa.width, wa.height);
-	
+	//draw background
 	XftDrawRect(d, &colors->background , 0, 0, wa.width, wa.height);
 
+	//get all files in dir
 	char **subdirs_name = subdirs->str;
-	//izpisi vse directory-je
 	int font_asc_dsc = font->ascent + font->descent;
 	int textx = 10, texty = font->ascent, num_of_displayed_dirs = wa.height/font_asc_dsc;
 
+	//dir is empty
+	char *check_dir;
+	char *tmp;
 	if(subdirs->len == 0){
-		//XDrawString(dpy, win, gc, textx, texty, "EMPTY", 5);
-		//XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)"EMPTY", 5);
+		XftDrawString8(d, &colors->foreground, font, textx, texty, (XftChar8 *)"EMPTY", 5);
 	}else{
 		for(int i=content_start;i<subdirs->len && i<content_start+num_of_displayed_dirs;i++){
+			//highlight selected dir
 			if(i == selected_dir){
 				printf("i: %d cd: %d\n",i,selected_dir);
-				//XSetForeground(dpy, gc, WhitePixel(dpy, screen));
-				//XFillRectangle(dpy, win, gc, 0, (selected_dir-content_start)*font->height, wa.width, font->height);
 				XftDrawRect(d, &colors->highlight, 0, (selected_dir-content_start)*font_asc_dsc, wa.width, font_asc_dsc);
-				//XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
 			}
-			/*
+			check_dir = (char *)malloc((strlen(base_dir)+strlen(subdirs_name[i])+1)*sizeof(char));
+			strcpy(check_dir, base_dir);
+			strcat(check_dir, subdirs_name[i]);
+			tmp = (char *)malloc((strlen(subdirs_name[i])+5)*sizeof(char));
+			if(is_dir(check_dir)){
+				strcpy(tmp, "(d) ");
+				strcat(tmp, subdirs_name[i]);
+				XftDrawString8(d, &colors->foreground, font, textx, texty, (XftChar8 *)tmp, strlen(tmp));
 			}else{
-				XftDrawString8(d, &colors[0], font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
+				strcpy(tmp, "(f) ");
+				strcat(tmp, subdirs_name[i]);
+				XftDrawString8(d, &colors->foreground, font, textx, texty, (XftChar8 *)tmp, strlen(tmp));
 			}
-			*/
-			XftDrawString8(d, &colors->foreground, font, textx, texty, (XftChar8 *)subdirs_name[i], strlen(subdirs_name[i]));
+			free(tmp);
+			free(check_dir);
 			texty+=font_asc_dsc;
 		}
 	}
@@ -564,7 +569,7 @@ int main(int argc, char **argv){
 				continue;
 				break;
 		}
-		draw(dpy, screen, win, gc, d, font, colors, wa, subdirs, choice_dir, content_start);
+		draw(dpy, screen, win, gc, d, font, colors, wa, subdirs, choice_dir, content_start, dir);
 	}
 	XftColorFree(dpy,DefaultVisual(dpy,0),DefaultColormap(dpy,0),&xftcolor1);
 	XftColorFree(dpy,DefaultVisual(dpy,0),DefaultColormap(dpy,0),&xftcolor2);

@@ -13,6 +13,14 @@
 
 
 #define POSITIVE(n) ((n) < 0 ? 0 - (n) : (n))
+#define SPECIAL_CHAR(c) ((c) == ' ' || (c) == '`' || (c) == '~' || (c) == '!' \
+		|| (c) == '@' || (c) == '#' || (c) == '$' || (c) == '%' \
+		|| (c) == '^' || (c) == '&' || (c) == '*' || (c) == '(' \
+		|| (c) == ')' || (c) == '-' || (c) == '_' || (c) == '=' \
+		|| (c) == '+' || (c) == '{' || (c) == '}' || (c) == '|' \
+		|| (c) == ';' || (c) == ':' || (c) == '"' || (c) == ',' \
+		|| (c) == '<' || (c) == '.' || (c) == '>' || (c) == '?' \
+		|| (c) == '\'' || (c) == '\\' ? 1 : 0)
 
 typedef struct ls_rets{
 	char ** str;
@@ -181,7 +189,7 @@ int dir_empty(ls_ret *dirs){
 char *handle_special_chars(char *str){
 	int num_of_spec_chars = 0;
 	for(int i=0;i<strlen(str);i++){
-		if(str[i] == ' '){
+		if(SPECIAL_CHAR(str[i])){
 			num_of_spec_chars++;
 		}
 	}
@@ -192,10 +200,11 @@ char *handle_special_chars(char *str){
 	char *ret = (char *)malloc((strlen(str)+num_of_spec_chars+1)*sizeof(char));
 	int x=0;
 	for(int i=0;i<strlen(str);i++){
-		if(str[i] == ' '){
+		//if(str[i] == ' '){
+		if(SPECIAL_CHAR(str[i])){
 			ret[x] = '\\';
 			x++;
-			ret[x] = ' ';
+			ret[x] = str[i];
 		}
 		else{
 			ret[x] = str[i];
@@ -207,273 +216,284 @@ char *handle_special_chars(char *str){
 	free(str);
 	return ret;
 }
+
 int remove_file_dir(char *target){
-	DIR *d;
-	struct dirent *dir;
-	d = opendir(target);
-	int status;
-	if(d){
-		char *subdir_name;
-		while((dir = readdir(d)) != NULL){
-			if(POSITIVE(strcmp(dir->d_name,".")) && POSITIVE(strcmp(dir->d_name,".."))){
-				subdir_name = (char *)malloc((strlen(target)+strlen(dir->d_name)+2)*sizeof(char));
-				strcpy(subdir_name, target);
-				strcat(subdir_name, "/");
-				strcat(subdir_name, dir->d_name);
-				if(is_dir(subdir_name)){
-					remove_file_dir(subdir_name);
-				}else{
-					status = remove(subdir_name);
+		DIR *d;
+		struct dirent *dir;
+		d = opendir(target);
+		int status;
+		if(d){
+			char *subdir_name;
+			while((dir = readdir(d)) != NULL){
+				if(POSITIVE(strcmp(dir->d_name,".")) && POSITIVE(strcmp(dir->d_name,".."))){
+					subdir_name = (char *)malloc((strlen(target)+strlen(dir->d_name)+2)*sizeof(char));
+					strcpy(subdir_name, target);
+					strcat(subdir_name, "/");
+					strcat(subdir_name, dir->d_name);
+					if(is_dir(subdir_name)){
+						remove_file_dir(subdir_name);
+					}else{
+						status = remove(subdir_name);
+					}
+					free(subdir_name);
 				}
-				free(subdir_name);
 			}
+			status = remove(target);
+			closedir(d);
+			return(status);
 		}
-		status = remove(target);
-		closedir(d);
-		return(status);
+		return remove(target);
 	}
-	return remove(target);
-}
 
-int main(int argc, char **argv){
-	Display *dpy;
-	Window root, win;
-	int screen;
-	GC gc;
-	XColor color1;
-	XSetWindowAttributes swa;
-	XWindowAttributes wa;
-	int winx = 0, winy = 0;
-	unsigned int winw = 1280, winh = 720;
+	int main(int argc, char **argv){
+		Display *dpy;
+		Window root, win;
+		int screen;
+		GC gc;
+		XColor color1;
+		XSetWindowAttributes swa;
+		XWindowAttributes wa;
+		int winx = 0, winy = 0;
+		unsigned int winw = 1280, winh = 720;
 
-	dpy = XOpenDisplay(NULL);
-	screen = DefaultScreen(dpy);
-	root = RootWindow(dpy, screen);
+		dpy = XOpenDisplay(NULL);
+		screen = DefaultScreen(dpy);
+		root = RootWindow(dpy, screen);
 
-	Bool supported_rtrn;
-	Bool xkbar = XkbSetDetectableAutoRepeat(dpy, True, &supported_rtrn);
+		Bool supported_rtrn;
+		Bool xkbar = XkbSetDetectableAutoRepeat(dpy, True, &supported_rtrn);
 
-	Colormap cmap = DefaultColormap(dpy, screen);
-	XParseColor(dpy, cmap, "#198c8f", &color1);
-	XAllocColor(dpy, cmap, &color1);
+		Colormap cmap = DefaultColormap(dpy, screen);
+		XParseColor(dpy, cmap, "#198c8f", &color1);
+		XAllocColor(dpy, cmap, &color1);
 
-	const char * fontname = "Ubuntu Mono:size=16";
-	XftFont *font = XftFontOpenName(dpy, screen, fontname);
-	//XftFont* font = XftFontOpen(dpy, DefaultScreen(dpy), XFT_FAMILY, XftTypeString, "ubuntu", XFT_SIZE, XftTypeDouble, 14.0, NULL);
-	printf("ascent: %d, descent: %d, height: %d\n", font->ascent, font->descent, font->height);
+		//const char * fontname = "Ubuntu Mono:size=18";
+		const char * fontname = "IBM Plex Mono:size=14";
+		//const char * fontname = "Source Code Pro:size=18";
+		XftFont *font = XftFontOpenName(dpy, screen, fontname);
+		//XftFont* font = XftFontOpen(dpy, DefaultScreen(dpy), XFT_FAMILY, XftTypeString, "ubuntu", XFT_SIZE, XftTypeDouble, 14.0, NULL);
+		printf("ascent: %d, descent: %d, height: %d\n", font->ascent, font->descent, font->height);
 
-	color_scheme *colors = (color_scheme *)malloc(sizeof(color_scheme));
-	//Xft colors
-	XRenderColor xrcolor1, xrcolor2, xrcolor3;
-	/*
-	xrcolor1.red = 65535;
-	xrcolor1.green = 65535;
-	xrcolor1.blue = 65535;
-	*/
-	xrcolor1.red = 223*257;
-	xrcolor1.green = 172*257;
-	xrcolor1.blue = 160*257;
+		color_scheme *colors = (color_scheme *)malloc(sizeof(color_scheme));
+		//Xft colors
+		XRenderColor xrcolor1, xrcolor2, xrcolor3;
+		/*
+		xrcolor1.red = 65535;
+		xrcolor1.green = 65535;
+		xrcolor1.blue = 65535;
+		*/
+		xrcolor1.red = 223*257;
+		xrcolor1.green = 172*257;
+		xrcolor1.blue = 160*257;
 
-	xrcolor2.red = 18*257;
-	xrcolor2.green = 15*257;
-	xrcolor2.blue = 28*257;
+		xrcolor2.red = 18*257;
+		xrcolor2.green = 15*257;
+		xrcolor2.blue = 28*257;
 
-	xrcolor3.red = 24*257;
-	xrcolor3.green = 45*257;
-	xrcolor3.blue = 87*257;
+		xrcolor3.red = 24*257;
+		xrcolor3.green = 45*257;
+		xrcolor3.blue = 87*257;
 
 
-	XftColor xftcolor1;
-	XftColor xftcolor2;
-	XftColor xftcolor3;
+		XftColor xftcolor1;
+		XftColor xftcolor2;
+		XftColor xftcolor3;
 
-	XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor1,&xftcolor1);
-	XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor2,&xftcolor2);
-	XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor3,&xftcolor3);
+		XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor1,&xftcolor1);
+		XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor2,&xftcolor2);
+		XftColorAllocValue(dpy,DefaultVisual(dpy,screen),DefaultColormap(dpy,screen),&xrcolor3,&xftcolor3);
 
-	colors->background = xftcolor2;
-	colors->foreground = xftcolor1;
-	colors->highlight = xftcolor3;
+		colors->background = xftcolor2;
+		colors->foreground = xftcolor1;
+		colors->highlight = xftcolor3;
 
-	//swa.background_pixel = BlackPixel(dpy, screen);
-	//swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | VisibilityChangeMask;
-	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
+		//swa.background_pixel = BlackPixel(dpy, screen);
+		//swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | VisibilityChangeMask;
+		//swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
+		swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
 
-	win = XCreateWindow(dpy, root, winx, winy, winw, winh, 2, CopyFromParent, CopyFromParent, CopyFromParent, CWBackPixel | CWEventMask, &swa);
-	XStoreName(dpy, win, "sfm");
-	XGetWindowAttributes(dpy, win, &wa);
-
-	XftDraw *d = XftDrawCreate(dpy, win, DefaultVisual(dpy, screen), cmap);
-
-	//Font font = XLoadFont(dpy, "-adobe-utopia-regular-r-normal--33-240-100-100-p-180-iso8859-14");	
-	
-	//XGCValues sgc;
-	//sgc.font = font;
-	//gc = XCreateGC(dpy, win, GCFont, &sgc);
-	gc = XCreateGC(dpy, win, 0, NULL);
-
-	XMapWindow(dpy, win);
-
-	XEvent event;
-
-	char *dir = (char *)malloc(500*sizeof(char));
-	strcpy(dir, "/home/joresg/");
-
-	int font_asc_dsc = font->ascent + font->descent;
-	int choice_dir = 0;
-	int content_start = 0, num_of_displayed_dirs = wa.height/font_asc_dsc;
-	XWindowAttributes rwa;
-	ls_ret *subdirs = ls(dir);
-	int run = 1;
-	while(run && !XNextEvent(dpy, &event)){
+		win = XCreateWindow(dpy, root, winx, winy, winw, winh, 2, CopyFromParent, CopyFromParent, CopyFromParent, CWBackPixel | CWEventMask, &swa);
+		XStoreName(dpy, win, "sfm");
+		XClassHint xch;
+		xch.res_name = "sfm";
+		xch.res_class = "sfm";
+		XSetClassHint(dpy, win, &xch);
 		XGetWindowAttributes(dpy, win, &wa);
-		num_of_displayed_dirs = wa.height/font_asc_dsc;
-		//subdirs = ls(dir);
-		//get all subdirs
-		printf("is %s dir? %d\n",dir, is_dir(dir));
-		//draw(dpy, screen, win, gc, wa, subdirs, choice_dir, content_start);
-		switch(event.type){
-			case Expose:
-				printf("%s\n","EXPOSE");
-				break;
-			case KeyRelease: // in case autorepeat fails just ignore keyrelease events
-				continue;
-			case KeyPress:
-				printf("%s\n","KEYPRESS");
-				//printf("KeyPressDIR: %s\n", dir);
-				switch(event.xkey.keycode){
 
-					case 22:
-						strcpy(dir, "/home/joresg/");
-						ls_free(subdirs);
-						subdirs = ls(dir);
-						choice_dir = content_start = 0;
-						break;
-					case 24:
-						//tle bo pac cleanup funkcija in cao
-						run = 0;
-						break;
-					case 58: //make directory
-						printf("mkdir\n");
-						FILE *fp;
-						char dir_name[1035];
-						strcpy(dir_name, "");
+		XftDraw *d = XftDrawCreate(dpy, win, DefaultVisual(dpy, screen), cmap);
 
-						fp = popen("echo \"\" | dmenu -p \"dir name\" -c", "r");
-						if (fp == NULL) {
-						printf("Failed to run command\n" );
-						exit(1);
-						}
+		//Font font = XLoadFont(dpy, "-adobe-utopia-regular-r-normal--33-240-100-100-p-180-iso8859-14");	
+		
+		//XGCValues sgc;
+		//sgc.font = font;
+		//gc = XCreateGC(dpy, win, GCFont, &sgc);
+		gc = XCreateGC(dpy, win, 0, NULL);
 
-						//while (fgets(path, sizeof(path), fp) != NULL) {
-						fgets(dir_name, sizeof(dir_name), fp);
-						dir_name[strlen(dir_name)-1] = '\0';
-						pclose(fp);
-						if(strlen(dir_name) == 0){
-							continue;
-						}
-						char *new_dir = (char *)malloc((strlen(dir)+strlen(dir_name)+1)*sizeof(char));
-						strcpy(new_dir, dir);
-						strcat(new_dir, dir_name);
-						printf("new dir path: %s\n", new_dir);
-						int status;
-						status = mkdir(new_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-						ls_free(subdirs);
-						free(new_dir);
-						subdirs = ls(dir);
-						break;
-					case 40: //remove dir or file
-						printf("remove: %s%s\n", dir, subdirs->str[choice_dir]);
-						char *delete_target = (char *)malloc((strlen(dir)+strlen(subdirs->str[choice_dir])+1)*sizeof(char));
-						strcpy(delete_target, dir);
-						strcat(delete_target, subdirs->str[choice_dir]);
+		XMapWindow(dpy, win);
 
-						//FILE *fp;
-						char conformation[6];
+		XEvent event;
 
-						char *cmd = (char *)malloc(40+strlen(subdirs->str[choice_dir])*sizeof(char));
-						strcpy(cmd, "echo \"no\nyes\" | dmenu -p \"delete ");
-						strcat(cmd, subdirs->str[choice_dir]);
-						strcat(cmd, "?\" -c");
-						printf("cmd: %s len: %ld\n", cmd, strlen(cmd));
-						fp = popen(cmd, "r");
-						if (fp == NULL) {
-						printf("Failed to run command\n" );
-						exit(1);
-						}
-						fgets(conformation, sizeof(conformation), fp);
-						conformation[strlen(conformation)-1] = '\0';
-						pclose(fp);
-						printf("conformation: %s\n", conformation);
-						if(!strcmp(conformation, "yes")){
-							printf("deleting...");
-							status = remove_file_dir(delete_target);
-							printf("STATUS: %d\n", status);
-						}
-						free(delete_target);
-						ls_free(subdirs);
-						subdirs = ls(dir);
-						break;
-					case 43: //h aka go back
-						printf("%s\n","goin to parent dir");
-						if(strcmp(dir,"/")){
-							int substrend = find_nth_last_char(dir, '/', 2);
-							if(!substrend){
-								strcpy(dir, "/");
-							}else{
-								char *dir_substr = substr(dir, 0, substrend+1);
-								strcpy(dir, dir_substr);
-								printf("substrend: %d\n", substrend);
-								printf("parent DIr: %s\n", dir);
-								free(dir_substr);
+		char *dir = (char *)malloc(500*sizeof(char));
+		strcpy(dir, "/home/joresg/");
+
+		int font_asc_dsc = font->ascent + font->descent;
+		int choice_dir = 0;
+		int content_start = 0, num_of_displayed_dirs = wa.height/font_asc_dsc;
+		XWindowAttributes rwa;
+		ls_ret *subdirs = ls(dir);
+		int run = 1;
+		while(run && !XNextEvent(dpy, &event)){
+			XGetWindowAttributes(dpy, win, &wa);
+			num_of_displayed_dirs = wa.height/font_asc_dsc;
+			//subdirs = ls(dir);
+			//get all subdirs
+			printf("is %s dir? %d\n",dir, is_dir(dir));
+			//draw(dpy, screen, win, gc, wa, subdirs, choice_dir, content_start);
+			switch(event.type){
+				case Expose:
+					printf("%s\n","EXPOSE");
+					break;
+				case KeyRelease: // in case autorepeat fails just ignore keyrelease events
+					continue;
+				case KeyPress:
+					printf("%s\n","KEYPRESS");
+					//printf("KeyPressDIR: %s\n", dir);
+					switch(event.xkey.keycode){
+
+						case 22:
+							strcpy(dir, "/home/joresg/");
+							ls_free(subdirs);
+							subdirs = ls(dir);
+							choice_dir = content_start = 0;
+							break;
+						case 24:
+							//tle bo pac cleanup funkcija in cao
+							run = 0;
+							break;
+						case 58: //make directory
+							printf("mkdir\n");
+							FILE *fp;
+							char dir_name[1035];
+							strcpy(dir_name, "");
+
+							fp = popen("echo \"\" | dmenu -p \"dir name\" -c", "r");
+							if (fp == NULL) {
+							printf("Failed to run command\n" );
+							exit(1);
 							}
-						}
-						choice_dir = 0;
-						content_start = 0;
-						ls_free(subdirs);
-						subdirs = ls(dir);
-						printf("SUBDIRS LEN %d\n",subdirs->len);
-						break;
-					case 44: //j aka go down
-						if(choice_dir < subdirs->len-1){
-							choice_dir++;
-							if(choice_dir == content_start+num_of_displayed_dirs){
-								content_start++;
+
+							//while (fgets(path, sizeof(path), fp) != NULL) {
+							fgets(dir_name, sizeof(dir_name), fp);
+							dir_name[strlen(dir_name)-1] = '\0';
+							pclose(fp);
+							if(strlen(dir_name) == 0){
+								continue;
 							}
-						}
-						break;
-					case 45:
-						if(choice_dir>0){
-							choice_dir--;
-							if(choice_dir<content_start){
-								content_start--;
+							char *new_dir = (char *)malloc((strlen(dir)+strlen(dir_name)+1)*sizeof(char));
+							strcpy(new_dir, dir);
+							strcat(new_dir, dir_name);
+							printf("new dir path: %s\n", new_dir);
+							int status;
+							status = mkdir(new_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+							ls_free(subdirs);
+							free(new_dir);
+							subdirs = ls(dir);
+							break;
+						case 40: //remove dir or file
+							printf("remove: %s%s\n", dir, subdirs->str[choice_dir]);
+							char *delete_target = (char *)malloc((strlen(dir)+strlen(subdirs->str[choice_dir])+1)*sizeof(char));
+							strcpy(delete_target, dir);
+							strcat(delete_target, subdirs->str[choice_dir]);
+
+							//FILE *fp;
+							char conformation[6];
+
+							char *cmd = (char *)malloc(40+strlen(subdirs->str[choice_dir])*sizeof(char));
+							strcpy(cmd, "echo \"no\nyes\" | dmenu -p \"delete ");
+							strcat(cmd, subdirs->str[choice_dir]);
+							strcat(cmd, "?\" -c");
+							printf("cmd: %s len: %ld\n", cmd, strlen(cmd));
+							fp = popen(cmd, "r");
+							if (fp == NULL) {
+							printf("Failed to run command\n" );
+							exit(1);
 							}
-						}
-						break;
-					case 46:
-						if(dir_empty(subdirs)){
-							printf("prazen dir, skipaj...\n");
-							continue;
-						}
-						printf("dir....%s\nsubidr.....%s\n",dir, subdirs->str[choice_dir]);
-						char *dir_tmp = (char *)malloc(500*sizeof(char));
-						strcpy(dir_tmp, dir);
-						strcat(dir_tmp,subdirs->str[choice_dir]);
-						if(is_dir(dir_tmp)){
-							strcpy(dir, dir_tmp);
-							strcat(dir,"/");
+							fgets(conformation, sizeof(conformation), fp);
+							conformation[strlen(conformation)-1] = '\0';
+							pclose(fp);
+							printf("conformation: %s\n", conformation);
+							if(!strcmp(conformation, "yes")){
+								printf("deleting...");
+								status = remove_file_dir(delete_target);
+								printf("STATUS: %d\n", status);
+							}
+							free(delete_target);
+							ls_free(subdirs);
+							subdirs = ls(dir);
+							if(choice_dir > 0 && choice_dir == subdirs->len){
+								choice_dir--;
+							}
+							break;
+						case 43: //h aka go back
+							printf("%s\n","goin to parent dir");
+							if(strcmp(dir,"/")){
+								int substrend = find_nth_last_char(dir, '/', 2);
+								if(!substrend){
+									strcpy(dir, "/");
+								}else{
+									char *dir_substr = substr(dir, 0, substrend+1);
+									strcpy(dir, dir_substr);
+									printf("substrend: %d\n", substrend);
+									printf("parent DIr: %s\n", dir);
+									free(dir_substr);
+								}
+							}
 							choice_dir = 0;
 							content_start = 0;
 							ls_free(subdirs);
 							subdirs = ls(dir);
-						}
-						else{
-							//check if file needs to be opened in a terminal
-							//if so spawn a shell and execute program in it
-							int status;
-							//first get the corresponding .desktop file
-							//escape potential special characters
-							dir_tmp = handle_special_chars(dir_tmp);
+							printf("SUBDIRS LEN %d\n",subdirs->len);
+							break;
+						case 44: //j aka go down
+							if(choice_dir < subdirs->len-1){
+								choice_dir++;
+								if(choice_dir == content_start+num_of_displayed_dirs){
+									content_start++;
+								}
+							}
+							break;
+						case 45:
+							if(choice_dir>0){
+								choice_dir--;
+								if(choice_dir<content_start){
+									content_start--;
+								}
+							}
+							break;
+						case 46:
+							if(dir_empty(subdirs)){
+								printf("prazen dir, skipaj...\n");
+								continue;
+							}
+							printf("dir....%s\nsubidr.....%s\n",dir, subdirs->str[choice_dir]);
+							char *dir_tmp = (char *)malloc(500*sizeof(char));
+							strcpy(dir_tmp, dir);
+							strcat(dir_tmp,subdirs->str[choice_dir]);
+							if(is_dir(dir_tmp)){
+								strcpy(dir, dir_tmp);
+								strcat(dir,"/");
+								choice_dir = 0;
+								content_start = 0;
+								ls_free(subdirs);
+								subdirs = ls(dir);
+							}
+							else{
+								//check if file needs to be opened in a terminal
+								//if so spawn a shell and execute program in it
+								int status;
+								//first get the corresponding .desktop file
+								//escape potential special characters
+								dir_tmp = handle_special_chars(dir_tmp);
 							printf("popravljeno: %s\n", dir_tmp);
 							char *query_filetype_cmd = (char *)malloc((25+strlen(dir_tmp))*sizeof(char));
 							strcpy(query_filetype_cmd, "xdg-mime query filetype ");
